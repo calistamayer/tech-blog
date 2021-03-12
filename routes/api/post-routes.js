@@ -73,40 +73,13 @@ router.post('/', (req, res) => {
 
 // add a comment; PUT /api/posts/comments (define before update a post route so "comment" isn't taken as a parameter for :id)
 router.put('/comments', (req, res) => {
-    Comment.create({
-        comment_content: req.body.comment_content,
-        user_id: req.body.user_id,
-        post_id: req.body.post_id
-    }).then(() => {
-        // then find the post we just commented on
-        return Post.findOne({
-            where: {
-                id: req.body.post_id
-            },
-            attributes: [
-                'id',
-                'post_content',
-                'title',
-                'created_at',
-                // use raw MySQL aggregate function query to get a count of how many votes the post has and return it under the name 'vote_count'
-                [
-                    sequelize.literal('(SELECT COUNT(*) FROM comment WHERE post.id = comment.post_id)'),
-                    'comment_count'
-                ]
-            ],
-            include: [
-                {
-                    model: Comment,
-                    attributes: ['comment_content']
-                }
-            ]
-        })
-            .then(dbPostData => res.json(dbPostData))
-            .catch(err => {
-                console.log(err);
-                res.status(400).json(err);
-            });
-    })
+    // custom static method created in models/Post.js
+    Post.comment(req.body, { Comment })
+        .then(updatedPostData => res.json(updatedPostData))
+        .catch(err => {
+            console.log(err);
+            res.status(400).json(err);
+        });
 });
 
 // update a post
