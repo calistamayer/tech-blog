@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const { Post, User } = require('../../models');
+const { Post, User, Comment } = require('../../models');
+const sequelize = require('../../config/connection');
 
 // get all posts
 router.get('/', (req, res) => {
@@ -28,7 +29,13 @@ router.get('/:id', (req, res) => {
         where: {
             id: req.params.id
         },
-        attributes: ['id', 'post_content', 'title', 'created_at'],
+        attributes: [
+            'id', 
+            'post_content', 
+            'title', 
+            'created_at',
+            [sequelize.literal('(SELECT COUNT(*) FROM comment WHERE post.id = comment.post_id)'), 'comment_count']
+        ],
         include: [
             {
                 model: User,
@@ -62,6 +69,44 @@ router.post('/', (req, res) => {
             console.log(err);
             res.status(500).json(err);
         });
+});
+
+// add a comment; PUT /api/posts/comments (define before update a post route so "comment" isn't taken as a parameter for :id)
+router.put('/comments', (req, res) => {
+    Comment.create({
+        comment_content: req.body.comment_content,
+        user_id: req.body.user_id,
+        post_id: req.body.post_id
+    }).then(() => {
+        // then find the post we just commented on
+        return Post.findOne({
+            where: {
+                id: req.body.post_id
+            },
+            attributes: [
+                'id',
+                'post_content',
+                'title',
+                'created_at',
+                // use raw MySQL aggregate function query to get a count of how many votes the post has and return it under the name 'vote_count'
+                [
+                    sequelize.literal('(SELECT COUNT(*) FROM comment WHERE post.id = comment.post_id)'),
+                    'comment_count'
+                ]
+            ],
+            include: [
+                {
+                    model: Comment,
+                    attributes: ['comment_content']
+                }
+            ]
+        })
+            .then(dbPostData => res.json(dbPostData))
+            .catch(err => {
+                console.log(err);
+                res.status(400).json(err);
+            });
+    })
 });
 
 // update a post
