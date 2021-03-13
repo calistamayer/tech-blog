@@ -7,12 +7,26 @@ router.get('/', (req, res) => {
     console.log('===================');
     Post.findAll({
         // Query configuration
-        attributes: ['id', 'post_content', 'title', 'created_at'],
         order: [['created_at', 'DESC']],
+        attributes: [
+            'id', 
+            'post_content', 
+            'title', 
+            'created_at'
+        ],
         include: [
+            // include comment model:
+            {
+                model: Comment,
+                attributes: ['id', 'comment_content', 'post_id', 'user_id', 'created_at'],
+                include: {
+                    model: User,
+                    attributes: ['id', 'username']
+                }
+            },
             {
                 model: User,
-                attributes: ['username']
+                attributes: ['id', 'username']
             }
         ]
     })
@@ -33,10 +47,18 @@ router.get('/:id', (req, res) => {
             'id', 
             'post_content', 
             'title', 
-            'created_at',
-            [sequelize.literal('(SELECT COUNT(*) FROM comment WHERE post.id = comment.post_id)'), 'comment_count']
+            'created_at'
+            // [sequelize.literal('(SELECT COUNT(*) FROM comment WHERE post.id = comment.post_id)'), 'comment_count']
         ],
         include: [
+            {
+                model: Comment,
+                attributes: ['id', 'comment_content', 'post_id', 'user_id', 'created_at'],
+                include: {
+                    model: User,
+                    attributes: ['id', 'username']
+                }
+            },
             {
                 model: User,
                 attributes: ['username']
@@ -68,17 +90,6 @@ router.post('/', (req, res) => {
         .catch(err => {
             console.log(err);
             res.status(500).json(err);
-        });
-});
-
-// add a comment; PUT /api/posts/comments (define before update a post route so "comment" isn't taken as a parameter for :id)
-router.put('/comments', (req, res) => {
-    // custom static method created in models/Post.js
-    Post.comment(req.body, { Comment })
-        .then(updatedPostData => res.json(updatedPostData))
-        .catch(err => {
-            console.log(err);
-            res.status(400).json(err);
         });
 });
 
